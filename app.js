@@ -1,15 +1,126 @@
-(()=>{'use strict';
- const target=Date.parse('2026-11-19T00:00:00+02:00');
- function countdown(){const ms=Math.max(0,target-Date.now());const set=(id,n)=>{const e=document.getElementById(id);if(e)e.textContent=String(n).padStart(2,'0')};set('days',Math.floor(ms/86400000));set('hours',Math.floor(ms%86400000/3600000));set('minutes',Math.floor(ms%3600000/60000));set('seconds',Math.floor(ms%60000/1000));if(ms===0){const e=document.querySelector('.countdown-text');if(e)e.innerHTML='LAUNCH DAY IS HERE <small>19 NOV 2026 / SOUTH AFRICA</small>';}}
- countdown();setInterval(countdown,1000);
- const year=document.getElementById('year');if(year)year.textContent=new Date().getFullYear();
- const menuBtn=document.getElementById('menuBtn');const nav=document.getElementById('primaryNav');menuBtn?.addEventListener('click',()=>{const b=menuBtn.getAttribute('aria-expanded')==='true';menuBtn.setAttribute('aria-expanded',String(!b));nav?.classList.toggle('nav-open',!b)});
- document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>{menuBtn?.setAttribute('aria-expanded','false');nav?.classList.remove('nav-open')}));
- const filters=document.querySelectorAll('.filter');filters.forEach(btn=>btn.addEventListener('click',()=>{const platform=btn.dataset.platform;filters.forEach(x=>{x.classList.toggle('active',x===btn);x.setAttribute('aria-pressed',String(x===btn))});document.querySelectorAll('.product-card').forEach(card=>{card.hidden=(platform!=='all'&&platform!==card.dataset.platform)})}));
- const modal=document.getElementById('mediaModal'),content=document.getElementById('mediaModalContent'),title=document.getElementById('mediaModalTitle'),closeBtn=document.getElementById('closeModal');let lastFocus;
- function openModal(name,element){if(!modal||!content)return;lastFocus=document.activeElement;title.textContent=name;content.replaceChildren(element);modal.hidden=false;document.body.classList.add('modal-open');closeBtn?.focus()}
- function closeModal(){if(!modal)return;modal.hidden=true;content?.replaceChildren();document.body.classList.remove('modal-open');lastFocus?.focus?.()}
- closeBtn?.addEventListener('click',closeModal);modal?.addEventListener('click',ev=>{if(ev.target===modal)closeModal()});document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&!modal?.hidden)closeModal()});
- document.querySelectorAll('[data-video]').forEach(btn=>btn.addEventListener('click',()=>{const id=btn.dataset.video;if(!/^[a-zA-Z0-9_-]{11}$/.test(id))return;const iframe=document.createElement('iframe');iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';iframe.referrerPolicy='strict-origin-when-cross-origin';iframe.allowFullscreen=true;iframe.title=btn.dataset.videoTitle||'Rockstar Games trailer';iframe.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0';iframe.className='modal-video';openModal(btn.dataset.videoTitle||'OFFICIAL ROCKSTAR VIDEO',iframe)}));
- document.querySelectorAll('[data-image]').forEach(btn=>btn.addEventListener('click',()=>{const image=document.createElement('img');image.src=btn.dataset.image;image.alt=btn.dataset.title||'Official GTA VI screenshot';image.className='modal-image';image.addEventListener('error',()=>image.src='assets/neon-city-original.webp',{once:true});openModal(btn.dataset.title||'OFFICIAL SCREENSHOT',image)}));
+(() => {
+  "use strict";
+  const $ = (s,root=document) => root.querySelector(s);
+  const $$ = (s,root=document) => Array.from(root.querySelectorAll(s));
+  let platform = new URLSearchParams(window.location.search).get('platform') === 'xbox' ? 'xbox' : 'ps5';
+
+  function setPlatform(value) {
+    platform = value === 'xbox' ? 'xbox' : 'ps5';
+    $$('[data-platform]').forEach(el => {
+      const active = el.dataset.platform === platform;
+      el.classList.toggle('active', active);
+      el.setAttribute('aria-pressed', String(active));
+    });
+    const heroCover = $('.cover-corner');
+    if (heroCover) heroCover.innerHTML = platform === 'ps5' ? 'PLAYSTATION 5 <span class="platform-cover-dot">●</span>' : 'XBOX SERIES X|S <span class="platform-cover-dot">●</span>';
+    $$('[data-order]').forEach(el => {
+      const edition = el.dataset.order;
+      el.href = 'checkout.html?platform=' + platform + '&edition=' + edition;
+    });
+    const box = $('.format-button');
+    if (box) box.href = 'checkout.html?platform=' + platform + '&edition=standard&fulfillment=box';
+    $$('.platform-group .selector-caption').forEach(el => {el.textContent = platform === 'ps5' ? '01 / 02' : '02 / 02';});
+  }
+  $$('[data-platform]').forEach(el => el.addEventListener('click', () => setPlatform(el.dataset.platform)));
+  setPlatform(platform);
+
+  const menu = $('#menuToggle');
+  const nav = $('#mainNav');
+  if (menu && nav) {
+    menu.addEventListener('click', () => {
+      const open = nav.classList.toggle('open');
+      menu.setAttribute('aria-expanded', String(open));
+    });
+    $$('a',nav).forEach(a => a.addEventListener('click', () => {
+      nav.classList.remove('open');
+      menu.setAttribute('aria-expanded','false');
+    }));
+  }
+
+  const searchToggle = $('#searchToggle'), searchPanel = $('#searchPanel'), searchClose = $('#searchClose');
+  function closeSearch(){ if(searchPanel) searchPanel.hidden = true; }
+  if (searchToggle && searchPanel) {
+    searchToggle.addEventListener('click', e => {e.stopPropagation();searchPanel.hidden = !searchPanel.hidden;});
+    searchClose.addEventListener('click',closeSearch);
+    $$('.quick-panel>a').forEach(a=>a.addEventListener('click',closeSearch));
+    document.addEventListener('click',e=>{if(!searchPanel.hidden && !searchPanel.contains(e.target) && !searchToggle.contains(e.target)) closeSearch();});
+  }
+  document.addEventListener('keydown',e=>{
+    if(e.key === 'Escape') closeSearch();
+  });
+
+  const videoDialog = $('#videoDialog');
+  const videoContainer = $('#videoContainer');
+  function openVideo(id) {
+    if(!videoDialog || !videoContainer || !/^[A-Za-z0-9_-]{11}$/.test(id)) return;
+    videoContainer.innerHTML = '';
+    const iframe = document.createElement('iframe');
+    iframe.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(id) + '?autoplay=1&rel=0';
+    iframe.title = 'Official Rockstar Games video';
+    iframe.loading = 'eager';
+    iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+    iframe.allowFullscreen = true;
+    videoContainer.appendChild(iframe);
+    videoDialog.showModal();
+  }
+  $$('[data-video]').forEach(el => el.addEventListener('click', () => openVideo(el.dataset.video)));
+  const heroTrailer = $('#heroTrailer');
+  if(heroTrailer) heroTrailer.addEventListener('click',()=>openVideo('rz1B4B2yBZY'));
+  function closeVideo(){ if(videoDialog && videoDialog.open) videoDialog.close(); }
+  const videoClose = $('#videoClose');
+  if(videoClose) videoClose.addEventListener('click',closeVideo);
+  if(videoDialog){
+    videoDialog.addEventListener('close',()=>{if(videoContainer) videoContainer.innerHTML='';});
+    videoDialog.addEventListener('click',e=>{if(e.target===videoDialog) closeVideo();});
+  }
+
+  const gallery = $('#galleryViewport');
+  const prev = $('#galleryPrev'), next=$('#galleryNext');
+  function slideGallery(direction){
+    if(gallery) gallery.scrollBy({left:direction * Math.min(gallery.clientWidth * .73, 700),behavior:'smooth'});
+  }
+  if(prev) prev.addEventListener('click',()=>slideGallery(-1));
+  if(next) next.addEventListener('click',()=>slideGallery(1));
+  const imageDialog = $('#imageDialog'), lightbox = $('#lightboxImage'), caption=$('#lightboxCaption');
+  $$('.gallery-img').forEach(el=>el.addEventListener('click',()=>{
+    if(!imageDialog || !lightbox) return;
+    const img = $('img',el);
+    if(!img) return;
+    lightbox.src=img.currentSrc||img.src;
+    lightbox.alt=img.alt;
+    if(caption) caption.textContent='ROCKSTAR GAMES / ' + (el.dataset.caption||'OFFICIAL SCREENSHOT').toUpperCase();
+    imageDialog.showModal();
+  }));
+  const imageClose = $('#imageClose');
+  if(imageClose) imageClose.addEventListener('click',()=>imageDialog.close());
+  if(imageDialog)imageDialog.addEventListener('click',e=>{if(e.target===imageDialog) imageDialog.close();});
+
+  $$('.detail-expand').forEach(btn=>btn.addEventListener('click',()=>{
+    const target = document.getElementById(btn.dataset.target);
+    if(!target) return;
+    target.hidden=!target.hidden;
+    btn.setAttribute('aria-expanded',String(!target.hidden));
+    const symbol=$('span',btn);
+    if(symbol) symbol.textContent=target.hidden?'+':'−';
+  }));
+
+  const anchors=$$('.section-nav-inner a');
+  if('IntersectionObserver' in window) {
+    const observer=new IntersectionObserver(entries=>{
+      const best=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+      if(best) anchors.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+best.target.id));
+    },{rootMargin:'-185px 0px -55% 0px',threshold:[0,.1,.4,.8]});
+    ['game-details','trailers','screenshots','compare-editions','questions'].forEach(id=>{const el=document.getElementById(id);if(el)observer.observe(el);});
+  }
+  const year = $('#year');
+  if(year) year.textContent = String(new Date().getFullYear());
+  $$('img').filter(img=>img.src && img.src.includes('images.ctfassets.net')).forEach(img=>{
+    img.addEventListener('error',()=>{
+      if(!img.dataset.fallbackUsed){
+        img.dataset.fallbackUsed='true';
+        img.src='assets/neon-city-original.webp';
+        img.style.objectFit='cover';
+      }
+    });
+  });
 })();
